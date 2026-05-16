@@ -27,6 +27,7 @@ logger = logging.getLogger("yt-api")
 
 # ── Config ────────────────────────────────────────────────────────────
 API_KEY = os.environ.get("API_KEY", "")  # optional: protect with a key
+YT_COOKIES = os.environ.get("YT_COOKIES", "")  # file path or raw cookie string
 YT_DLP_VERSION = yt_dlp.version.__version__
 
 
@@ -116,6 +117,17 @@ def _extract(req: DownloadRequest) -> StreamInfo:
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
     }
+
+    # Inject cookies to bypass YouTube bot-detection.
+    # If YT_COOKIES is a path to an existing Netscape-format cookie file, pass
+    # it directly via cookiefile.  Otherwise treat the value as a raw Cookie
+    # header string and inject it through http_headers so yt-dlp sends it on
+    # every request without needing a file on disk.
+    if YT_COOKIES:
+        if os.path.isfile(YT_COOKIES):
+            ydl_opts["cookiefile"] = YT_COOKIES
+        else:
+            ydl_opts["http_headers"] = {"Cookie": YT_COOKIES}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(req.url, download=False)
